@@ -13,11 +13,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3      
       - name: AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+      - name: Login to ECR Public
+        run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
       - name: Install dependencies
         run: |
           docker run --rm -v "$GITHUB_WORKSPACE:/var/task" public.ecr.aws/lambda/python:3.12 pip install -r /var/task/requirements.txt -t /var/task/package/ --upgrade
@@ -30,7 +32,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
