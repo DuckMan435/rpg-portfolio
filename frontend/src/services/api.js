@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8000'
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 export function getClasses() {
   return fetch(`${API_BASE_URL}/classes`)

@@ -1,5 +1,5 @@
 from sqlalchemy import text
-from app.models.character import CharacterResponse, XPGain
+from app.models.character import CharacterResponse, CharacterClassStat, XPGain
 
 class CharacterService:
     def gain_xp(self, id: int, xp: XPGain, db):
