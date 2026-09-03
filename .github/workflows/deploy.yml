@@ -22,7 +22,7 @@ jobs:
         run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
       - name: Install dependencies
         run: |
-          docker run --rm -v "$GITHUB_WORKSPACE:/var/task" public.ecr.aws/lambda/python:3.12 pip install -r /var/task/requirements.txt -t /var/task/package/ --upgrade
+          docker run --rm --entrypoint pip -v "$GITHUB_WORKSPACE:/var/task" public.ecr.aws/lambda/python:3.12 install -r /var/task/requirements.txt -t /var/task/package/ --upgrade
           cp -r app package/
           cd package && zip -r ../lambda.zip . && cd ..
           aws lambda update-function-code --function-name forge-lambda --zip-file fileb://lambda.zip
