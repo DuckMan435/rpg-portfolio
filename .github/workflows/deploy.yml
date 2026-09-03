@@ -8,7 +8,6 @@ on:
       - 'frontend/**'
 jobs:
   deploy-backend:
-    if: contains(github.event.commits[0].modified, 'app/') || contains(github.event.commits[0].added, 'app/')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -26,7 +25,6 @@ jobs:
           cd package && zip -r ../lambda.zip . && cd ..
           aws lambda update-function-code --function-name forge-lambda --zip-file fileb://lambda.zip
   deploy-frontend:
-    if: contains(github.event.commits[0].modified, 'frontend/') || contains(github.event.commits[0].added, 'frontend/')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
