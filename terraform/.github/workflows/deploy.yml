@@ -1,0 +1,46 @@
+name: Deploy
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - 'frontend/**'
+jobs:
+  deploy-backend:
+    if: contains(github.event.commits[0].modified, 'app/') || contains(github.event.commits[0].added, 'app/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3      
+      - name: AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Install dependencies
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/var/task" public.ecr.aws/lambda/python:3.12 pip install -r /var/task/requirements.txt -t /var/task/package/ --upgrade
+          cp -r app package/
+          cd package && zip -r ../lambda.zip . && cd ..
+          aws lambda update-function-code --function-name forge-lambda --zip-file fileb://lambda.zip
+  deploy-frontend:
+    if: contains(github.event.commits[0].modified, 'frontend/') || contains(github.event.commits[0].added, 'frontend/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}      
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+          aws s3 sync build/ s3://${{ secrets.S3_BUCKET }} --delete
+          aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
