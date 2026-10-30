@@ -18,7 +18,7 @@ venv\Scripts\python.exe -m uvicorn app.main:app --port 8001   # Swagger UI at /d
 - Port 8000 is often taken by another local project on this machine. 8001 is used for this one.
 - Set `API_PREFIX` from PowerShell, not Git Bash: MSYS rewrites `API_PREFIX=/api` into a Windows path and FastAPI then fails with "A path prefix must start with '/'".
 - `uvicorn --reload` has been unreliable here (it detects changes but doesn't restart the worker). Restart manually.
-- Containerized API: `docker build -t forge-api .` then `docker run --network forge-network --env-file .env -p 8000:8000 forge-api`.
+- Containerized API: `docker build -t forge-api .` then `docker run --network forge-network --env-file .env -p 8000:8000 forge-api`. The image is cloud-neutral (no account-specific values), so it can run on any Kubernetes provider. `.dockerignore` keeps `.env*`, `keys/`, `k8s/` and `terraform/` out of the image.
 
 Database: a local Postgres runs in the Docker container `postgres_local` (db `rpg_db`, port 5432, data in a Docker volume). **The schema and seed data are not in the repo.** Inspect them with `docker exec postgres_local psql -U postgres -d rpg_db -c "\d <table>"`.
 
@@ -47,10 +47,18 @@ npm run build
 
 **Frontend state:** there is no router. `App.js` switches on a `mode` string (`landing` / `wizard` / `select` / `sheet`) and holds the active `character`. `CharacterWizard` steps through `wizard/Step*.jsx`. Shared styles (`.panel`, `.btn-primary`) live in `src/index.css`.
 
-## Deployment (two parallel paths)
+## Workflow
 
-1. **Lambda (live, used by CI):** `.github/workflows/deploy.yml` runs on pushes to `main` that touch `app/**` or `frontend/**`. It builds `lambda.zip` with pip inside the Lambda Docker image (locally: `build.ps1`) and updates function `forge-lambda`. The frontend is synced to S3 and CloudFront is invalidated (locally: `deploy-frontend.ps1`). In `terraform/`: CloudFront serves S3 and routes `/api/*` → API Gateway HTTP API (`ANY /{proxy+}`) → Lambda (`app.main.handler`, via Mangum) in private subnets → RDS Postgres 15.
-   - The Lambda entry point is the module-level `handler = Mangum(app, lifespan="off")` in `app/main.py`. Keep it defined unconditionally, since `terraform/lambda.tf` sets no deployment-type env var.
-2. **EKS (in progress):** `Dockerfile` → ECR `rpg/forge-api:latest` → `k8s/` manifests (Deployment, ClusterIP Service, ALB Ingress, ConfigMap with `API_PREFIX`, Secret with `DATABASE_URL`). Deploy with `deploy-k8s.ps1`.
+Don't commit to `main` directly. Make each change in a git worktree on a new branch, push the branch, and open a PR against `main`. Before pushing, check the changed files for secrets and AWS account details (account ID, CloudFront distribution ID, database URLs).
 
-CORS origins (`localhost:3000` and the CloudFront domain) are hardcoded in `app/main.py`. Terraform state, `terraform.tfvars`, `.env*`, `keys/*.pem` and `k8s/secret.yaml` hold real credentials. Don't print or commit them.
+## Deployment (inactive)
+
+The AWS deployment has been shut down, so nothing is deployed. The `Deploy` GitHub Actions workflow is disabled on GitHub (`gh workflow enable Deploy` turns it back on), and merging to `main` doesn't deploy. Don't run `terraform apply` or deploy scripts. The setup below is kept as a record of how the project deployed.
+
+**Lambda (previously used by CI):** `.github/workflows/deploy.yml` runs on pushes to `main` that touch `app/**` or `frontend/**`. It builds `lambda.zip` with pip inside the Lambda Docker image (locally: `build.ps1`) and updates function `forge-lambda`. The frontend is synced to S3 and CloudFront is invalidated (locally: `deploy-frontend.ps1`). In `terraform/`: CloudFront serves S3 and routes `/api/*` → API Gateway HTTP API (`ANY /{proxy+}`) → Lambda (`app.main.handler`, via Mangum) in private subnets → RDS Postgres 15.
+- The Lambda entry point is the module-level `handler = Mangum(app, lifespan="off")` in `app/main.py`. Keep it defined unconditionally, since `terraform/lambda.tf` sets no deployment-type env var.
+- `deploy-frontend.ps1` has a `YOUR_DISTRIBUTION_ID` placeholder. The real CloudFront distribution ID is kept locally in the gitignored `.env.cloudfront`.
+
+A move to EKS (the `Dockerfile` image pushed to ECR, plus `k8s/` manifests) was started. The AWS-specific parts (`k8s/` manifests, `deploy-k8s.ps1`, EKS/ECR Terraform) were never committed and are archived outside the repo. The local Terraform state still lists the EKS resources, so if AWS is ever brought back, restore the archived `.tf` files before running `terraform destroy`.
+
+CORS origins (`localhost:3000` and the CloudFront domain) are hardcoded in `app/main.py`. Terraform state, `terraform.tfvars`, root `.env*` files and `keys/` hold real credentials and are gitignored. Don't print or commit them.
