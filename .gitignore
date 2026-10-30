@@ -60,3 +60,10 @@ terraform.tfvars
 
 # Keys
 *.pem
+keys/
+
+# Local env files with credentials (e.g. .env.aws)
+/.env.*
+
+# Kubernetes secrets
+k8s/secret.yaml
