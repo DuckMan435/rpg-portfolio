@@ -8,7 +8,7 @@ from sqlalchemy import text
 router = APIRouter()
 character_service = CharacterService()
 
-@router.get("/")
+@router.get("")
 def get_classes(db=Depends(get_db)):
     # Logic to retrieve classes from the database
     classes = db.execute(text("select * from classes c")).fetchall()

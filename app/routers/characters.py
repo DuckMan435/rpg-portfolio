@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 router = APIRouter()
 character_service = CharacterService()
 
-@router.get("/")
+@router.get("")
 def get_characters(db=Depends(get_db)):
     # Logic to retrieve a specific character from the database
     character_data = db.execute(text("""
@@ -71,7 +71,7 @@ def get_character(id: int, db=Depends(get_db)):
     else:
         raise HTTPException(status_code=404, detail=f"Character with ID {id} not found")
 
-@router.post("/")
+@router.post("")
 def create_character(character: CharacterCreate, db=Depends(get_db)):
     # Logic to create a new character in the database
     try:
