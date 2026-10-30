@@ -1,24 +1,39 @@
 # mobile/CLAUDE.md
 
-Guidance for the .NET MAUI client of Forge. **Status: planned. The MAUI projects don't exist yet.** These are the decisions and rules to follow when creating them. The repo-wide rules in the root `CLAUDE.md` (worktree + branch + PR, no secrets in git) still apply.
+Guidance for the .NET MAUI client of RPG. The projects are scaffolded (landing page, navigation, DI, tests); the wizard, select and sheet pages and the API client are still to come. The repo-wide rules in the root `CLAUDE.md` (worktree + branch + PR, no secrets in git) still apply.
 
 ## Decisions
 
 - **Platforms, in order:** Windows and Android first (both build on the Windows dev machine). iOS is built in CI on GitHub Actions macOS runners. Mac Catalyst is optional later and uses the same macOS job.
 - **Stack:** .NET 10 (LTS) with the MAUI workload (`dotnet workload install maui`). Native XAML UI with MVVM, not Blazor Hybrid. No code is shared with the React app.
 - **Look and feel:** the same screens, flow, colors, spacing and branding as the web app, using **native controls** on each platform. The app isn't meant to be pixel-identical across platforms: pickers, nav bars, fonts and back gestures follow each platform.
-- **App ID:** `com.duckman435.forge`. Don't change it after the first store upload.
+- **App ID:** `com.duckman435.rpg`. Don't change it after the first store upload.
 - **Game rules stay on the server.** The app never recomputes XP, levels or stats. It shows what the API returns, so web and mobile always agree.
 
-## Planned layout
+## Layout
 
 ```
 mobile/
-  Forge.Mobile/          MAUI app: XAML pages, platform code, resources, MauiProgram.cs
-  Forge.Core/            net10.0 class library: ViewModels, API client, models, service interfaces
-  Forge.Core.Tests/      xUnit tests for Forge.Core
+  Rpg.Mobile/          MAUI app: XAML pages, platform code, resources, MauiProgram.cs
+  Rpg.Core/            net10.0 class library: ViewModels, API client, models, service interfaces
+  Rpg.Core.Tests/      xUnit tests for Rpg.Core
 ```
-Keep logic in `Forge.Core` so it can be unit-tested without a device. `Forge.Core` must not reference MAUI types. Anything platform-specific (navigation, dialogs, connectivity, storage) goes behind an interface implemented in `Forge.Mobile`.
+Keep logic in `Rpg.Core` so it can be unit-tested without a device. `Rpg.Core` must not reference MAUI types. Anything platform-specific (navigation, dialogs, connectivity, storage) goes behind an interface implemented in `Rpg.Mobile`.
+
+## Commands
+
+Run from `mobile/` (solution: `Rpg.slnx`):
+```powershell
+dotnet test Rpg.Core.Tests                                    # unit tests, no device needed
+dotnet build Rpg.Mobile -f net10.0-windows10.0.19041.0        # Windows
+dotnet build Rpg.Mobile -f net10.0-android                    # Android
+dotnet build Rpg.Mobile -t:Run -f net10.0-windows10.0.19041.0 # build and launch on Windows
+dotnet build Rpg.Mobile -t:Run -f net10.0-android             # build and launch on a running emulator/device
+```
+- Always pass `-f` on Windows. A plain `dotnet build` also tries the iOS and Mac Catalyst targets, which need a Mac.
+- The app expects the API at port 8001 (`uvicorn ... --port 8001` or `docker compose up` from the repo root). The URL is chosen in `MauiProgram.GetApiBaseUrl()`. Release builds throw until a production HTTPS URL is set there.
+- Routes live in `Rpg.Core/Navigation/Routes.cs`. Pages that aren't built yet are registered to `PlaceholderPage` in `AppShell.xaml.cs`. Replace each registration when its real page lands.
+- Android emulators are managed from Visual Studio (Tools → Android → Android Device Manager). The Android SDK is at `C:\Program Files (x86)\Android\android-sdk`.
 
 ## Architecture
 
@@ -45,7 +60,7 @@ Keep logic in `Forge.Core` so it can be unit-tested without a device. `Forge.Cor
 
 - **Don't put secrets in the app.** Any app package can be decompiled, so the app only knows the public API URL.
 - Future auth tokens go in `SecureStorage`. `Preferences` is only for non-sensitive settings (e.g. the last opened character ID).
-- **Minimal permissions.** Forge needs only internet access. Adding any other permission needs a stated reason, because store reviewers ask.
+- **Minimal permissions.** The app needs only internet access. Adding any other permission needs a stated reason, because store reviewers ask.
 - **Signing material is never committed:** Android keystores, iOS certificates (`.p12`) and provisioning profiles, and Windows `.pfx` certificates. These patterns are in `.gitignore`. In CI they live only in GitHub Actions secrets.
 - The API currently has no authentication: anyone can create characters. That's acceptable for this learning project, but don't build features that assume otherwise.
 
@@ -73,7 +88,7 @@ Keep logic in `Forge.Core` so it can be unit-tested without a device. `Forge.Cor
 
 ## Testing
 
-- Unit-test ViewModels and the API client in `Forge.Core.Tests` (xUnit), with a fake HTTP handler. These tests run anywhere with no emulator.
+- Unit-test ViewModels and the API client in `Rpg.Core.Tests` (xUnit), with a fake HTTP handler. These tests run anywhere with no emulator.
 - Before merging UI changes, run the app on Windows and on an Android emulator. Test on a physical Android device before any release.
 - **iOS without a Mac:** Apple's iOS Simulator only runs on macOS, and there's no real iOS emulator for Windows.
   - **On every PR:** the macOS CI job builds the app, boots the iOS Simulator, launches the app and captures screenshots of the main pages (`xcrun simctl io booted screenshot`) as workflow artifacts. Review them for iOS-only layout problems (safe areas, font fit, nav bar).
