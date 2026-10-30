@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "Forge" is a small RPG character-creator portfolio project. A React SPA lets you create a character (pick a class and name), load a saved one, and click "Gain EXP" to level up. The backend is a FastAPI service over Postgres that uses **raw SQL via `sqlalchemy.text()`**. There is no ORM model layer and there are no migrations.
 
+A .NET MAUI client (Windows, Android, iOS) is planned in `mobile/`. Its rules are in `mobile/CLAUDE.md`. Because installed apps update slowly, **API changes must stay backward compatible**: add fields, don't rename or remove them, and use versioned routes (`/api/v1`) for breaking changes.
+
 ## Commands
 
 Backend (repo root, Windows venv; the venv uses Python 3.14 while the Docker/Lambda runtime is 3.12):
