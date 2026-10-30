@@ -67,3 +67,17 @@ keys/
 
 # Kubernetes secrets
 k8s/secret.yaml
+
+# .NET / MAUI build output
+bin/
+obj/
+.vs/
+*.user
+
+# App signing material (never commit)
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.mobileprovision
+*.provisionprofile
