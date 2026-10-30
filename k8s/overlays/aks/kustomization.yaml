@@ -1,0 +1,9 @@
+# Azure Kubernetes Service: replace <acr-name> with your Azure Container Registry.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - name: forge-api
+    newName: <acr-name>.azurecr.io/forge-api
+    newTag: latest

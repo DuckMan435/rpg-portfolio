@@ -1,0 +1,9 @@
+# Google Kubernetes Engine: replace <region>, <project> and <repo> with your Artifact Registry.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - name: forge-api
+    newName: <region>-docker.pkg.dev/<project>/<repo>/forge-api
+    newTag: latest

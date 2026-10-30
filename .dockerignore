@@ -13,3 +13,4 @@ k8s/
 keys/
 .git/
 .claude/
+db/

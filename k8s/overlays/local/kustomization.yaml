@@ -1,0 +1,17 @@
+# Docker Desktop Kubernetes: uses the image built locally by `docker build -t forge-api .`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - name: forge-api
+    newName: forge-api
+    newTag: latest
+patches:
+  - target:
+      kind: Deployment
+      name: forge-api
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: IfNotPresent

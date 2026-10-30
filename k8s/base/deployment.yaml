@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forge-api
+  labels:
+    app: forge-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: forge-api
+  template:
+    metadata:
+      labels:
+        app: forge-api
+    spec:
+      containers:
+        - name: forge-api
+          # Placeholder name; each overlay points it at that provider's registry.
+          image: forge-api
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: forge-api-secret
+                  key: DATABASE_URL
+            - name: API_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: forge-api-config
+                  key: API_PREFIX
+          readinessProbe:
+            httpGet:
+              path: /api/classes
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi

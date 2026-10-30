@@ -1,0 +1,36 @@
+# Local stack: Forge API + Postgres seeded from db/init.
+#   docker compose up --build      -> API at http://localhost:8001/api (Swagger UI at /docs)
+#   docker compose down -v         -> stop and wipe the database volume (re-seeds on next up)
+# POSTGRES_PASSWORD is a local-only dev password; override it in your shell if you like.
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: rpg_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forge-local}
+    volumes:
+      - forge-db:/var/lib/postgresql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rpg_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    image: forge-api:latest
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-forge-local}@db:5432/rpg_db
+      API_PREFIX: /api
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8001:8000"
+
+volumes:
+  forge-db:

@@ -18,9 +18,10 @@ venv\Scripts\python.exe -m uvicorn app.main:app --port 8001   # Swagger UI at /d
 - Port 8000 is often taken by another local project on this machine. 8001 is used for this one.
 - Set `API_PREFIX` from PowerShell, not Git Bash: MSYS rewrites `API_PREFIX=/api` into a Windows path and FastAPI then fails with "A path prefix must start with '/'".
 - `uvicorn --reload` has been unreliable here (it detects changes but doesn't restart the worker). Restart manually.
-- Containerized API: `docker build -t forge-api .` then `docker run --network forge-network --env-file .env -p 8000:8000 forge-api`. The image is cloud-neutral (no account-specific values), so it can run on any Kubernetes provider. `.dockerignore` keeps `.env*`, `keys/`, `k8s/` and `terraform/` out of the image.
+- Containerized API: `docker build -t forge-api .` then `docker run --network forge-network --env-file .env -p 8000:8000 forge-api`. The image is cloud-neutral (no account-specific values), so it can run on any Kubernetes provider. `.dockerignore` keeps `.env*`, `keys/`, `k8s/`, `db/` and `terraform/` out of the image.
+- Full local stack (API + a fresh Postgres seeded from `db/init`): `docker compose up --build`. The API is at `http://localhost:8001/api` and Postgres at `localhost:5433`. `docker compose down -v` wipes the database so it re-seeds on the next start. The compose password is a local-only default (`POSTGRES_PASSWORD`, overridable).
 
-Database: a local Postgres runs in the Docker container `postgres_local` (db `rpg_db`, port 5432, data in a Docker volume). **The schema and seed data are not in the repo.** Inspect them with `docker exec postgres_local psql -U postgres -d rpg_db -c "\d <table>"`.
+Database: the schema and game data (classes, stat types, base stats, level gains, settings) are in `db/init/01-schema.sql` and `db/init/02-seed.sql`, exported with `pg_dump`. Player characters aren't included. If you change the schema or game data, re-export both files. The older long-lived local Postgres is the Docker container `postgres_local` (db `rpg_db`, port 5432). Inspect it with `docker exec postgres_local psql -U postgres -d rpg_db -c "\d <table>"`.
 
 Frontend (`frontend/`, Create React App + Tailwind 3):
 ```powershell
@@ -51,6 +52,14 @@ npm run build
 
 Don't commit to `main` directly. Make each change in a git worktree on a new branch, push the branch, and open a PR against `main`. Before pushing, check the changed files for secrets and AWS account details (account ID, CloudFront distribution ID, database URLs).
 
+## Kubernetes (cloud-neutral)
+
+`k8s/` uses Kustomize. `k8s/base/` holds the Deployment, ClusterIP Service, ConfigMap (`API_PREFIX`) and an ingress-nginx Ingress for `/api`. The readiness probe calls `/api/classes`. `k8s/overlays/{local,aks,eks,gke}` only set the image: `local` uses the locally built `forge-api:latest` for Docker Desktop Kubernetes, and the cloud overlays have `<placeholder>` registry addresses to fill in. Keep account IDs, registry names and provider-specific annotations out of `base/`.
+- Render without a cluster: `kubectl kustomize k8s/overlays/<name>`. Deploy: `kubectl apply -k k8s/overlays/<name>`.
+- The Deployment reads `DATABASE_URL` from the Secret `forge-api-secret`. `k8s/secret.example.yaml` shows its shape; the real `k8s/secret.yaml` is gitignored. Or create it with `kubectl create secret generic forge-api-secret --from-literal=DATABASE_URL=...`.
+- The cluster needs ingress-nginx installed, and a Postgres it can reach (a managed DB, seeded from `db/init`).
+- Check `kubectl config current-context` before applying. It may still point at the old EKS cluster.
+
 ## Deployment (inactive)
 
 The AWS deployment has been shut down, so nothing is deployed. The `Deploy` GitHub Actions workflow is disabled on GitHub (`gh workflow enable Deploy` turns it back on), and merging to `main` doesn't deploy. Don't run `terraform apply` or deploy scripts. The setup below is kept as a record of how the project deployed.
@@ -59,6 +68,6 @@ The AWS deployment has been shut down, so nothing is deployed. The `Deploy` GitH
 - The Lambda entry point is the module-level `handler = Mangum(app, lifespan="off")` in `app/main.py`. Keep it defined unconditionally, since `terraform/lambda.tf` sets no deployment-type env var.
 - `deploy-frontend.ps1` has a `YOUR_DISTRIBUTION_ID` placeholder. The real CloudFront distribution ID is kept locally in the gitignored `.env.cloudfront`.
 
-A move to EKS (the `Dockerfile` image pushed to ECR, plus `k8s/` manifests) was started. The AWS-specific parts (`k8s/` manifests, `deploy-k8s.ps1`, EKS/ECR Terraform) were never committed and are archived outside the repo. The local Terraform state still lists the EKS resources, so if AWS is ever brought back, restore the archived `.tf` files before running `terraform destroy`.
+A move to EKS was started. Its AWS-specific parts (the original ALB-based `k8s/` manifests, `deploy-k8s.ps1`, EKS/ECR Terraform) were never committed and are archived outside the repo. The cloud-neutral `k8s/` above replaces those manifests. The local Terraform state still lists the EKS resources, so if AWS is ever brought back, restore the archived `.tf` files before running `terraform destroy`.
 
 CORS origins (`localhost:3000` and the CloudFront domain) are hardcoded in `app/main.py`. Terraform state, `terraform.tfvars`, root `.env*` files and `keys/` hold real credentials and are gitignored. Don't print or commit them.
