@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Backend (repo root, Windows venv; the venv uses Python 3.14 while the Lambda runtime is 3.12):
+Backend (repo root, Windows venv; the venv uses Python 3.14 while the Docker/Lambda runtime is 3.12):
 ```powershell
 venv\Scripts\python.exe -m pip install -r requirements.txt
 $env:DATABASE_URL = "postgresql://<user>:<pass>@localhost:5432/rpg_db"; $env:API_PREFIX = "/api"
@@ -18,6 +18,7 @@ venv\Scripts\python.exe -m uvicorn app.main:app --port 8001   # Swagger UI at /d
 - Port 8000 is often taken by another local project on this machine. 8001 is used for this one.
 - Set `API_PREFIX` from PowerShell, not Git Bash: MSYS rewrites `API_PREFIX=/api` into a Windows path and FastAPI then fails with "A path prefix must start with '/'".
 - `uvicorn --reload` has been unreliable here (it detects changes but doesn't restart the worker). Restart manually.
+- Containerized API: `docker build -t forge-api .` then `docker run --network forge-network --env-file .env -p 8000:8000 forge-api`. The image is cloud-neutral (no account-specific values), so it can run on any Kubernetes provider. `.dockerignore` keeps `.env*`, `keys/`, `k8s/` and `terraform/` out of the image.
 
 Database: a local Postgres runs in the Docker container `postgres_local` (db `rpg_db`, port 5432, data in a Docker volume). **The schema and seed data are not in the repo.** Inspect them with `docker exec postgres_local psql -U postgres -d rpg_db -c "\d <table>"`.
 
@@ -58,6 +59,6 @@ The AWS deployment has been shut down, so nothing is deployed. The `Deploy` GitH
 - The Lambda entry point is the module-level `handler = Mangum(app, lifespan="off")` in `app/main.py`. Keep it defined unconditionally, since `terraform/lambda.tf` sets no deployment-type env var.
 - `deploy-frontend.ps1` has a `YOUR_DISTRIBUTION_ID` placeholder. The real CloudFront distribution ID is kept locally in the gitignored `.env.cloudfront`.
 
-A move to EKS (Docker image in ECR, `k8s/` manifests) was started but never committed. That work is archived outside the repo. The local Terraform state still lists the EKS resources, so if AWS is ever brought back, restore the archived `.tf` files before running `terraform destroy`.
+A move to EKS (the `Dockerfile` image pushed to ECR, plus `k8s/` manifests) was started. The AWS-specific parts (`k8s/` manifests, `deploy-k8s.ps1`, EKS/ECR Terraform) were never committed and are archived outside the repo. The local Terraform state still lists the EKS resources, so if AWS is ever brought back, restore the archived `.tf` files before running `terraform destroy`.
 
 CORS origins (`localhost:3000` and the CloudFront domain) are hardcoded in `app/main.py`. Terraform state, `terraform.tfvars`, root `.env*` files and `keys/` hold real credentials and are gitignored. Don't print or commit them.

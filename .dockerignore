@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+package/
+lambda.zip
+terraform/
+frontend/
+*.pem
+.env.*
+k8s/
+keys/
+.git/
+.claude/
