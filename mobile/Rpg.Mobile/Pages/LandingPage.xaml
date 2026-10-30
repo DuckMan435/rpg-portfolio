@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Rpg.Core.ViewModels;assembly=Rpg.Core"
+             x:Class="Rpg.Mobile.Pages.LandingPage"
+             x:DataType="vm:LandingViewModel"
+             Title="RPG">
+
+    <ScrollView>
+        <VerticalStackLayout
+            Padding="30,0"
+            Spacing="25"
+            VerticalOptions="Center">
+
+            <Label
+                Text="RPG"
+                Style="{StaticResource Headline}"
+                SemanticProperties.HeadingLevel="Level1" />
+
+            <Label
+                Text="Create a character or continue an adventure."
+                Style="{StaticResource SubHeadline}"
+                SemanticProperties.HeadingLevel="Level2" />
+
+            <Button
+                Text="New character"
+                Command="{Binding NewCharacterCommand}"
+                SemanticProperties.Hint="Starts the character creation wizard"
+                HorizontalOptions="Fill" />
+
+            <Button
+                Text="Load character"
+                Command="{Binding LoadCharacterCommand}"
+                SemanticProperties.Hint="Opens the list of saved characters"
+                HorizontalOptions="Fill" />
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

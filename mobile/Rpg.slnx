@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Rpg.Core.Tests/Rpg.Core.Tests.csproj" />
+  <Project Path="Rpg.Core/Rpg.Core.csproj" />
+  <Project Path="Rpg.Mobile/Rpg.Mobile.csproj" />
+</Solution>
