@@ -11,7 +11,7 @@ export function getClasses() {
 }
 
 export function getClass(class_name) {
-  return fetch(`${API_BASE_URL}/classes/${class_name}`)
+  return fetch(`${API_BASE_URL}/classes/${encodeURIComponent(class_name)}`)
     .then((response) => {
       if (!response.ok) {
         throw new Error('Network response was not ok');

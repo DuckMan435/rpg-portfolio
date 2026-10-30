@@ -24,7 +24,7 @@ export default function CharacterSheet({ character, setCharacter }) {
         <span><b>Class:</b> {character.class_name}</span>
         <span><b>Level:</b> {character.level}</span>
         <span><b>Current EXP:</b> {character.current_xp}</span>
-        <span><b>EXP to next level:</b> {character.next_level_xp - character.current_xp}</span>
+        <span><b>EXP to next level:</b> {character.next_level_xp}</span>
         <button className="text-yellow-400 border border-yellow-600 px-6 py-1 hover:bg-yellow-600 hover:text-black w-full tracking-widest w-96" onClick={() => onGainExperience()}>Gain EXP</button>
           <div className="w-96">
             {character.stats && (

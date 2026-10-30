@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from app.database import get_db
 from app.services.character_service import CharacterService
 from app.models.character import CharacterCreate, CharacterResponse, XPGain
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 router = APIRouter()
 character_service = CharacterService()
 
-@router.get("/")
+@router.get("")
 def get_characters(db=Depends(get_db)):
     # Logic to retrieve a specific character from the database
     character_data = db.execute(text("""
@@ -68,14 +69,21 @@ def get_character(id: int, db=Depends(get_db)):
             )
         return {"message": f"Details of character {character_data.character_name}", "data": character}
     else:
-        return {"message": f"Character with ID {id} not found", "data": None}
+        raise HTTPException(status_code=404, detail=f"Character with ID {id} not found")
 
-@router.post("/")
+@router.post("")
 def create_character(character: CharacterCreate, db=Depends(get_db)):
     # Logic to create a new character in the database
-    db.execute(text("INSERT INTO public.characters (character_name, class_id) VALUES (:name, :class_id)"),
-               {"name": character.character_name, "class_id": character.class_id})
-    db.commit()
+    try:
+        db.execute(text("INSERT INTO public.characters (character_name, class_id) VALUES (:name, :class_id)"),
+                   {"name": character.character_name, "class_id": character.class_id})
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        # Unique name constraint vs. unknown class_id foreign key
+        if "characters_unique" in str(e.orig):
+            raise HTTPException(status_code=409, detail=f"Character name {character.character_name} is already taken")
+        raise HTTPException(status_code=422, detail=f"Class with ID {character.class_id} does not exist")
 
     # Retrieve the newly created character to return in the response
     character_data = db.execute(text("""

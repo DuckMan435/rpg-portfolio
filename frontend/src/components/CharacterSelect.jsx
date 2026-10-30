@@ -10,7 +10,7 @@ export default function CharacterSelect({ onCharacterSelected, setMode }) {
     const fetchCharacters = async () => {
       try {
         const response = await getCharacters();
-        setCharacters(response.data);
+        setCharacters(response.data ?? []);
       } catch (error) {
         console.error("Error fetching characters:", error);
       }

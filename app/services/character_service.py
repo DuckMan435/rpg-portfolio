@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from sqlalchemy import text
 from app.models.character import CharacterResponse, CharacterClassStat, XPGain
 
@@ -11,7 +12,7 @@ class CharacterService:
                                             WHERE c.character_id = :id
                                          """), {"id": id}).first()
         if not character_data:
-            return {"message": f"Character with ID {id} not found", "data": None}
+            raise HTTPException(status_code=404, detail=f"Character with ID {id} not found")
 
         # Add the gained XP to the character's current XP
         new_xp = character_data.current_xp + xp.xp
@@ -27,7 +28,7 @@ class CharacterService:
                    {"new_xp": new_xp, "new_level": new_level, "id": id})
         db.commit()
 
-        calculated_stats = self.calculate_stats(character_data.class_id, character_data.level, db)
+        calculated_stats = self.calculate_stats(character_data.class_id, new_level, db)
         next_level_xp = self.calculate_xp_to_next_level(new_level, new_xp, xp_multiplier)
 
         character = CharacterResponse(
@@ -67,7 +68,8 @@ class CharacterService:
 
     def calculate_xp_to_next_level(self, current_level: int, current_xp: int,  xp_multiplier: float) -> int:
         # Calculate the XP required for the next level based on the cubic formula
-        next_level_xp = int(((current_level + 1) ** 3) * xp_multiplier)
+        # Must match calculate_level: level L -> L+1 happens at L^3 * multiplier
+        next_level_xp = int((current_level ** 3) * xp_multiplier)
         return max(0, next_level_xp - current_xp)
 
     def calculate_stats(self, class_id: int, level: int, db):
