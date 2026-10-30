@@ -1,0 +1,9 @@
+# Amazon EKS: replace <account-id> and <region> with your ECR registry.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - name: forge-api
+    newName: <account-id>.dkr.ecr.<region>.amazonaws.com/forge-api
+    newTag: latest
