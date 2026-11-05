@@ -25,17 +25,24 @@ Keep logic in `Forge.Core` so it can be unit-tested without a device. `Forge.Cor
 - **MVVM with CommunityToolkit.Mvvm:** `[ObservableProperty]`, `[RelayCommand]`. Pages have no logic in code-behind beyond wiring.
 - **Dependency injection:** register pages, ViewModels and services in `MauiProgram.cs`.
 - **Shell navigation.** The pages mirror the web app's `mode` states: Landing, Wizard (class → name → confirm), Select (load character), Sheet. ViewModels navigate through an `INavigationService` and never call `Shell.Current` directly.
-- **API client:** one typed client registered with `IHttpClientFactory`, and no `HttpClient` use anywhere else. Generate the request/response models from FastAPI's `/openapi.json` (NSwag or Kiota) instead of writing them by hand. Regenerate them when the API changes.
-- Responses are wrapped as `{"message", "data"}` (except `GET /classes/{name}`), and errors are `{"detail"}`. Map HTTP 404/409/422 to user-facing messages (e.g. 409 → "That name is taken").
+- **API client:** one typed client registered with `IHttpClientFactory`, and no `HttpClient` use anywhere else. Generate the request/response models from FastAPI's `/openapi.json` instead of writing them by hand. Regenerate them when the API changes.
+  - Every route declares a `response_model`, so the OpenAPI document has full response schemas. Backend routes added later must declare one too, or the generated client gets an untyped body.
+  - Generate for **System.Text.Json**: Kiota (its default), or NSwag with `JsonLibrary: SystemTextJson`. Never Newtonsoft.Json. Register a source-generated `JsonSerializerContext` for the models so serialization works in iOS ahead-of-time builds.
+- **Responses** are wrapped as `{"message", "data"}`, except `GET /classes/{name}`, which returns the class object directly. `GET /characters` returns `data: []` when there are none. Servers older than this rule returned `null`, so treat a null list as empty.
+- **Errors** come in two shapes, so branch on the shape of `detail`, never on its text:
+  - **String `detail`:** errors the API raises itself: 404 (character or class not found), 409 (name taken) and 422 (unknown `class_id`).
+  - **Array `detail`** (`[{"loc", "msg", "type"}]`): FastAPI's own request validation, always 422 (bad name format or length, `xp` ≤ 0).
+  - Validate the name on the device with the same rule as the API (1–30 characters, `^[a-zA-Z0-9 ]+$`), so the array case is rare and can show a generic "invalid input" message.
+  - Map the rest to user-facing messages, e.g. 409 → "That name is taken", string-422 → "That class no longer exists".
 - Use **compiled bindings everywhere:** set `x:DataType` on every page and template.
 
 ## API and networking
 
-- **Old app versions stay installed for months, so API changes must stay backward compatible.** Add fields, don't rename or remove them. If a breaking change is unavoidable, introduce versioned routes (`/api/v1`) rather than changing existing ones. This also applies to backend work in `app/`.
+- **Old app versions stay installed for months, so API changes must stay backward compatible.** Add fields, don't rename or remove them. The current unversioned `/api/...` routes are the v1 contract. If a breaking change is unavoidable, add it under `/api/v2/...` and leave `/api/...` serving older apps unchanged. This also applies to backend work in `app/`.
 - **The base URL is configuration, not a constant.** Use different values per build configuration and platform:
   - Android emulator → `http://10.0.2.2:8001/api` (the host machine's localhost)
   - Windows → `http://localhost:8001/api`
-  - Physical device → the dev machine's LAN IP
+  - Physical device → `http://<dev machine LAN IP>:8001/api`. The documented ways of running the API listen only on 127.0.0.1 (uvicorn's default host, and compose's `127.0.0.1:8001` binding), so a phone gets "connection refused". Run uvicorn with `--host 0.0.0.0 --port 8001`, or publish the API container on `0.0.0.0:8001`. Then allow inbound TCP 8001 in Windows Firewall for the **Private** profile only. Keep compose's localhost-only binding as the default.
   - Release → an HTTPS URL
 - **HTTPS is required outside Debug.** Android blocks cleartext HTTP and iOS App Transport Security blocks plain HTTP by default. Allow cleartext only in Debug builds, scoped to the dev hosts, and never in Release.
 - **Every request handles:** a timeout, no connectivity (`IConnectivity`), loading state, error state with retry, and cancellation when the user leaves the page.
@@ -68,7 +75,7 @@ Keep logic in `Forge.Core` so it can be unit-tested without a device. `Forge.Cor
 
 - The OS can kill the app in the background. Persist the current character ID in `Preferences` and restore it on resume or restart.
 - No blocking or long-running work on the UI thread. Use async all the way and never `.Result` or `.Wait()`.
-- iOS Release builds are compiled ahead of time (no JIT). Avoid reflection-heavy libraries, and test a Release build, not just Debug.
+- iOS Release builds are compiled ahead of time (no JIT). Avoid reflection-heavy libraries (for JSON, use System.Text.Json source generation, see "API client" above), and test a Release build, not just Debug.
 - Keep startup light: don't make API calls in constructors, so the first page renders before data loads.
 
 ## Testing

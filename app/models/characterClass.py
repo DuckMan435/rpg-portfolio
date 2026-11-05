@@ -6,6 +6,10 @@ class CharacterClassStat(BaseModel):
     stat_name: str
     value: int
 
+class ClassSummary(BaseModel):
+    class_id: int
+    class_name: str
+
 class CharacterClass(BaseModel):
     class_id: int
     class_name: str

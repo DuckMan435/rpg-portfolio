@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.database import get_db
 from app.services.character_service import CharacterService
+from typing import List
 from app.models.character import CharacterCreate, CharacterResponse, XPGain
+from app.models.common import Envelope, ErrorDetail
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 router = APIRouter()
 character_service = CharacterService()
 
-@router.get("")
+@router.get("", response_model=Envelope[List[CharacterResponse]])
 def get_characters(db=Depends(get_db)):
     # Logic to retrieve a specific character from the database
     character_data = db.execute(text("""
@@ -38,9 +40,10 @@ def get_characters(db=Depends(get_db)):
             ))
         return {"message": f"All characters retrieved", "data": list_of_characters}
     else:
-        return {"message": f"No characters found", "data": None}
+        # Empty list rather than null so typed clients can use a non-nullable list
+        return {"message": f"No characters found", "data": []}
 
-@router.get("/{id}")
+@router.get("/{id}", response_model=Envelope[CharacterResponse], responses={404: {"model": ErrorDetail}})
 def get_character(id: int, db=Depends(get_db)):
     # Logic to retrieve a specific character from the database
     character_data = db.execute(text("""
@@ -71,7 +74,7 @@ def get_character(id: int, db=Depends(get_db)):
     else:
         raise HTTPException(status_code=404, detail=f"Character with ID {id} not found")
 
-@router.post("")
+@router.post("", response_model=Envelope[CharacterResponse], responses={409: {"model": ErrorDetail}})
 def create_character(character: CharacterCreate, db=Depends(get_db)):
     # Logic to create a new character in the database
     try:
@@ -116,7 +119,7 @@ def create_character(character: CharacterCreate, db=Depends(get_db)):
     
     return {"message": f"Character {character.character_name} created successfully", "data": character}
 
-@router.post("/{id}/gain-xp")
+@router.post("/{id}/gain-xp", response_model=Envelope[CharacterResponse], responses={404: {"model": ErrorDetail}})
 def gain_xp(id: int, xp: XPGain, db=Depends(get_db)):
     # Logic to gain XP for a specific character
     result = character_service.gain_xp(id, xp, db)

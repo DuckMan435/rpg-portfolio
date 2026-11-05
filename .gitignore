@@ -68,11 +68,11 @@ keys/
 # Kubernetes secrets
 k8s/secret.yaml
 
-# .NET / MAUI build output
-bin/
-obj/
-.vs/
-*.user
+# .NET / MAUI build output (scoped to mobile/ so other bin/ or obj/ folders still get committed)
+mobile/**/bin/
+mobile/**/obj/
+mobile/**/.vs/
+mobile/**/*.user
 
 # App signing material (never commit)
 *.keystore
