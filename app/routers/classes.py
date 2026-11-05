@@ -1,20 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.database import get_db
 from app.services.character_service import CharacterService
-from app.models.characterClass import CharacterClass
+from typing import List
+from app.models.characterClass import CharacterClass, ClassSummary
+from app.models.common import Envelope, ErrorDetail
 from sqlalchemy import text
 
 
 router = APIRouter()
 character_service = CharacterService()
 
-@router.get("")
+@router.get("", response_model=Envelope[List[ClassSummary]])
 def get_classes(db=Depends(get_db)):
     # Logic to retrieve classes from the database
     classes = db.execute(text("select * from classes c")).fetchall()
     return {"message": "List of classes", "data": [dict(row._mapping) for row in classes]}
 
-@router.get("/{class_name}")
+@router.get("/{class_name}", response_model=CharacterClass, responses={404: {"model": ErrorDetail}})
 def get_class(class_name: str, db=Depends(get_db)):
     # Logic to retrieve a specific class from the database
     class_data = db.execute(text("select * from classes c WHERE class_name ILIKE :name"), {"name": class_name}).first()

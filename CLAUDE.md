@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "Forge" is a small RPG character-creator portfolio project. A React SPA lets you create a character (pick a class and name), load a saved one, and click "Gain EXP" to level up. The backend is a FastAPI service over Postgres that uses **raw SQL via `sqlalchemy.text()`**. There is no ORM model layer and there are no migrations.
 
-A .NET MAUI client (Windows, Android, iOS) is planned in `mobile/`. Its rules are in `mobile/CLAUDE.md`. Because installed apps update slowly, **API changes must stay backward compatible**: add fields, don't rename or remove them, and use versioned routes (`/api/v1`) for breaking changes.
+A .NET MAUI client (Windows, Android, iOS) is planned in `mobile/`. Its rules are in `mobile/CLAUDE.md`. Because installed apps update slowly, **API changes must stay backward compatible**: add fields, don't rename or remove them, and treat the current unversioned `/api/...` routes as the v1 contract: a breaking change goes under `/api/v2/...` while `/api/...` keeps working.
 
 ## Commands
 
@@ -46,7 +46,7 @@ npm run build
 - Stats are computed, not stored: `base + (level - 1) * gain` (`CharacterService.calculate_stats`).
 - Leveling is cubic: going from level L to L+1 needs total XP ≥ `L³ × xp_multiplier`. `calculate_level` and `calculate_xp_to_next_level` must stay consistent with each other. `next_level_xp` in responses is the XP *remaining*, not a threshold. `max_level` is currently not enforced.
 - DB constraints the API relies on: `character_name` is unique, max 30 chars, matches `^[a-zA-Z0-9 ]+$` (mirrored in `CharacterCreate`). The API maps violations to 409/422.
-- Responses are wrapped as `{"message": ..., "data": ...}`. Exception: `GET /classes/{name}` returns the class object directly. Errors use `HTTPException` (`{"detail": ...}`).
+- Responses are wrapped as `{"message": ..., "data": ...}`. Exception: `GET /classes/{name}` returns the class object directly. Every route declares `response_model` (`Envelope[...]` from `app/models/common.py`) so `/openapi.json` has typed responses for generated clients. Keep doing this for new routes. `GET /characters` returns `data: []` (not `null`) when empty. Errors use `HTTPException` (`{"detail": "<string>"}`, documented via `ErrorDetail`). FastAPI's own validation 422s return `detail` as an array.
 
 **Frontend state:** there is no router. `App.js` switches on a `mode` string (`landing` / `wizard` / `select` / `sheet`) and holds the active `character`. `CharacterWizard` steps through `wizard/Step*.jsx`. Shared styles (`.panel`, `.btn-primary`) live in `src/index.css`.
 
